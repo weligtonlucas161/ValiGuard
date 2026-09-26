@@ -110,28 +110,38 @@ object CryptoUtils {
     }
 }
 
-/**
- * Extensões auxiliares para criptografar e descriptografar modelos Produto e NovoProduto.
- */
+// === Extensões para Produto ===
 fun Produto.decrypted(): Produto = this.copy(
     nome = CryptoUtils.decrypt(this.nome),
     setor = CryptoUtils.decrypt(this.setor),
     codigo_barras = CryptoUtils.decrypt(this.codigo_barras),
-    plu = this.plu?.let { CryptoUtils.decrypt(it) }
+    plu = this.plu?.let { CryptoUtils.decrypt(it) },
+    secao = this.secao?.let { CryptoUtils.decrypt(it) },
+    lote = this.lote?.let { CryptoUtils.decrypt(it) },
+    localizacao = this.localizacao?.let { CryptoUtils.decrypt(it) },
+    observacoes = this.observacoes?.let { CryptoUtils.decrypt(it) }
 )
 
 fun Produto.encrypted(): Produto = this.copy(
     nome = CryptoUtils.encrypt(this.nome),
     setor = CryptoUtils.encrypt(this.setor),
     codigo_barras = CryptoUtils.encrypt(this.codigo_barras),
-    plu = this.plu?.let { CryptoUtils.encrypt(it) }
+    plu = this.plu?.let { CryptoUtils.encrypt(it) },
+    secao = this.secao?.let { CryptoUtils.encrypt(it) },
+    lote = this.lote?.let { CryptoUtils.encrypt(it) },
+    localizacao = this.localizacao?.let { CryptoUtils.encrypt(it) },
+    observacoes = this.observacoes?.let { CryptoUtils.encrypt(it) }
 )
 
 fun NovoProduto.encrypted(): NovoProduto = this.copy(
     nome = CryptoUtils.encrypt(this.nome),
     setor = CryptoUtils.encrypt(this.setor),
     codigo_barras = CryptoUtils.encrypt(this.codigo_barras),
-    plu = this.plu?.let { CryptoUtils.encrypt(it) }
+    plu = this.plu?.let { CryptoUtils.encrypt(it) },
+    secao = this.secao?.let { CryptoUtils.encrypt(it) },
+    lote = this.lote?.let { CryptoUtils.encrypt(it) },
+    localizacao = this.localizacao?.let { CryptoUtils.encrypt(it) },
+    observacoes = this.observacoes?.let { CryptoUtils.encrypt(it) }
 )
 
 // === Extensões para Usuário ===

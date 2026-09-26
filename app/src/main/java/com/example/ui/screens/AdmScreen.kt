@@ -76,6 +76,7 @@ import com.example.data.supabase.AtualizarLojaStatus
 import com.example.data.FeedbackManager
 import com.example.ui.components.AdmFeedbacksTab
 import com.example.ui.components.AdmTelemetriaTab
+import com.example.ui.components.GestaoEquipeScreen
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -138,9 +139,10 @@ fun AdmScreen(
     var lojasList by remember { mutableStateOf<List<Loja>>(emptyList()) }
     var isLoadingLojas by remember { mutableStateOf(false) }
 
-    // Tab de navegação no painel ADM (0 = Lojas, 1 = Feedbacks, 2 = Telemetria)
+    // Tab de navegação no painel ADM (0 = Lojas, 1 = Equipe & Logs, 2 = Feedbacks, 3 = Telemetria)
     var selectedTab by remember { mutableIntStateOf(0) }
     var feedbackCount by remember { mutableIntStateOf(0) }
+    var selectedLojaForEquipe by remember { mutableStateOf<Loja?>(null) }
 
     // Formulário Criação de Loja (Item 2)
     var nomeLojaInput by remember { mutableStateOf("") }
@@ -278,6 +280,17 @@ fun AdmScreen(
                 },
                 actions = {
                     IconButton(
+                        onClick = { selectedTab = 1 },
+                        modifier = Modifier.testTag("adm_equipe_btn")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Group,
+                            contentDescription = "Gestão de Equipe",
+                            tint = Color(0xFF93C5FD)
+                        )
+                    }
+
+                    IconButton(
                         onClick = { showConfigDialog = true },
                         modifier = Modifier.testTag("adm_config_btn")
                     ) {
@@ -343,9 +356,23 @@ fun AdmScreen(
                     onClick = { selectedTab = 1 },
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Group, contentDescription = null, modifier = Modifier.size(15.dp), tint = Color(0xFFC084FC))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Equipe", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                    },
+                    selectedContentColor = Color.White,
+                    unselectedContentColor = DarkTextSecondary
+                )
+
+                Tab(
+                    selected = selectedTab == 2,
+                    onClick = { selectedTab = 2 },
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(15.dp), tint = Color(0xFFFBBF24))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Melhorias & Feedbacks", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text("Feedbacks", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             if (feedbackCount > 0) {
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Surface(
@@ -365,13 +392,13 @@ fun AdmScreen(
                 )
 
                 Tab(
-                    selected = selectedTab == 2,
-                    onClick = { selectedTab = 2 },
+                    selected = selectedTab == 3,
+                    onClick = { selectedTab = 3 },
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.BarChart, contentDescription = null, modifier = Modifier.size(15.dp), tint = EmeraldSafe)
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Telemetria do App", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text("Telemetria", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
                     },
                     selectedContentColor = Color.White,
@@ -708,6 +735,24 @@ fun AdmScreen(
                                         }
                                     }
 
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    Button(
+                                        onClick = {
+                                            selectedLojaForEquipe = loja
+                                            selectedTab = 1
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF581C87)),
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("btn_equipe_loja_${loja.id}")
+                                    ) {
+                                        Icon(Icons.Default.Group, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Gerenciar Equipe & Logs da Empresa", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    }
+
                                 }
                             }
                         }
@@ -715,13 +760,22 @@ fun AdmScreen(
                 }
             }
 
-            // Conteúdo da Aba 1: MELHORIAS E FEEDBACKS DO APP
+            // Conteúdo da Aba 1: GESTÃO DE EQUIPE E LOGS
             if (selectedTab == 1) {
+                val activeLoja = selectedLojaForEquipe ?: lojasList.firstOrNull()
+                GestaoEquipeScreen(
+                    lojaIdOverride = activeLoja?.id ?: currentUser?.loja_id,
+                    lojaNomeOverride = activeLoja?.nome_loja
+                )
+            }
+
+            // Conteúdo da Aba 2: MELHORIAS E FEEDBACKS DO APP
+            if (selectedTab == 2) {
                 AdmFeedbacksTab()
             }
 
-            // Conteúdo da Aba 2: DASHBOARD DE TELEMETRIA DO APP
-            if (selectedTab == 2) {
+            // Conteúdo da Aba 3: DASHBOARD DE TELEMETRIA DO APP
+            if (selectedTab == 3) {
                 AdmTelemetriaTab(
                     lojasList = lojasList
                 )

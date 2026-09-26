@@ -123,6 +123,7 @@ import com.example.ui.components.AddProdutoDialog
 import com.example.ui.components.AuditoriaHubScreen
 import com.example.ui.components.DetalhesProdutoDialog
 import com.example.ui.components.GerenciarSetoresDialog
+import com.example.ui.components.GestaoEquipeScreen
 import com.example.ui.components.MasterUsuariosTab
 import com.example.ui.components.MonitoramentoAcoesDialog
 import com.example.ui.components.PlanilhaImportDialog
@@ -156,7 +157,8 @@ enum class OperadorMenu(val label: String, val icon: ImageVector) {
     DASHBOARD("Dashboard", Icons.Default.Dashboard),
     MONITORAMENTO("Monitoramento", Icons.Default.HourglassBottom),
     ESTOQUE("Estoque", Icons.Default.Inventory2),
-    AUDITORIA("Auditoria", Icons.Default.FactCheck)
+    AUDITORIA("Auditoria", Icons.Default.FactCheck),
+    EQUIPE("Equipe", Icons.Default.Group)
 }
 
 enum class ExpiryStatus(val title: String, val color: Color, val icon: ImageVector) {
@@ -349,13 +351,16 @@ fun MainAppScreen(
         roleAccentColor
     }
 
-    val navItems = remember {
-        listOf(
-            OperadorMenu.DASHBOARD,
-            OperadorMenu.MONITORAMENTO,
-            OperadorMenu.ESTOQUE,
-            OperadorMenu.AUDITORIA
-        )
+    val navItems = remember(isMaster, isAdm) {
+        buildList {
+            add(OperadorMenu.DASHBOARD)
+            add(OperadorMenu.MONITORAMENTO)
+            add(OperadorMenu.ESTOQUE)
+            add(OperadorMenu.AUDITORIA)
+            if (isMaster || isAdm) {
+                add(OperadorMenu.EQUIPE)
+            }
+        }
     }
 
     Scaffold(
@@ -413,6 +418,18 @@ fun MainAppScreen(
                     }
                 },
                 actions = {
+                    if (isMaster || isAdm) {
+                        IconButton(
+                            onClick = { currentTab = OperadorMenu.EQUIPE },
+                            modifier = Modifier.testTag("btn_gestao_equipe_topbar")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Group,
+                                contentDescription = "Gestão de Equipe e Logs",
+                                tint = roleAccentColor
+                            )
+                        }
+                    }
                     if (isMaster) {
                         IconButton(
                             onClick = { showGerenciarSetores = true },
@@ -581,6 +598,11 @@ fun MainAppScreen(
                 OperadorMenu.AUDITORIA -> AuditoriaHubScreen(
                     produtos = produtos,
                     onRefreshProdutos = { loadProdutos() }
+                )
+
+                OperadorMenu.EQUIPE -> GestaoEquipeScreen(
+                    lojaIdOverride = currentUser.loja_id,
+                    lojaNomeOverride = currentLoja?.nome_loja
                 )
             }
         }

@@ -1,0 +1,6 @@
+{
+  "name": "ValiGuard",
+  "description": "Sistema ValiGuard para controle inteligente de validade, estoque, auditorias e gestão de perdas em supermercados",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

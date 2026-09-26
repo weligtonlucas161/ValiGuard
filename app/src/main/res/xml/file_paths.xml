@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <cache-path name="audit_cache" path="." />
+    <files-path name="audit_files" path="." />
+    <external-files-path name="audit_external" path="." />
+</paths>

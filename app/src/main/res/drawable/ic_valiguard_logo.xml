@@ -1,0 +1,31 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+
+    <!-- Escudo ValiGuard -->
+    <!-- Contorno base do escudo com formato de proteção -->
+    <path
+        android:fillColor="#10B981"
+        android:pathData="M50,14 C68,14 78,18 84,24 C84,52 68,76 50,86 C32,76 16,52 16,24 C22,18 32,14 50,14 Z" />
+
+    <!-- Listras de código de barras vazadas no escudo -->
+    <path
+        android:fillColor="#0A111E"
+        android:pathData="M24,28 L28,28 L28,52 L24,52 Z
+                          M31,26 L33,26 L33,56 L31,56 Z
+                          M36,25 L40,25 L40,58 L36,58 Z
+                          M43,24 L45,24 L45,60 L43,60 Z
+                          M48,24 L52,24 L52,60 L48,60 Z" />
+
+    <!-- Checkmark dinâmico de conferência aprovada (Verificado) -->
+    <path
+        android:fillColor="#10B981"
+        android:strokeColor="#0A111E"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M28,54 L44,70 L86,28 L78,20 L44,56 L36,46 Z" />
+
+</vector>

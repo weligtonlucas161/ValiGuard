@@ -77,7 +77,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun AdmTelemetriaTab(
     lojasList: List<Loja>,
-    usuariosList: List<Usuario> = emptyList(),
+    usuariosList: List<Usuario>,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current

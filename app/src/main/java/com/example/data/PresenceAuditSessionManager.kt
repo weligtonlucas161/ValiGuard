@@ -37,8 +37,7 @@ data class AuditItemScanned(
     val setor: String,
     val operadorMatricula: String,
     val operadorNome: String,
-    val timestampMs: Long = System.currentTimeMillis(),
-    val quantidadeEstoque: Int = 0
+    val timestampMs: Long = System.currentTimeMillis()
 ) {
     fun getFormattedTime(): String {
         val sdf = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
@@ -437,8 +436,7 @@ object PresenceAuditSessionManager {
             setor = produto.setor,
             operadorMatricula = currentUser.matricula,
             operadorNome = currentUser.nome,
-            timestampMs = System.currentTimeMillis(),
-            quantidadeEstoque = produto.quantidade
+            timestampMs = System.currentTimeMillis()
         )
 
         val updatedMap = session.itensBipados.toMutableMap().apply {

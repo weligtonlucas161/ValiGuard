@@ -2,7 +2,6 @@ package com.example.data.supabase
 
 import android.util.Log
 import com.example.BuildConfig
-import com.example.util.encrypted
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
@@ -69,7 +68,7 @@ class SupabaseClient(
 
         val lojaId = if (existingLojas.isEmpty()) {
             val novaLoja = NovaLoja(nome_loja = "Loja Matriz Centro", cor_borda = "#2563EB", ativa = true)
-            val inserted = from("lojas").insert(novaLoja.encrypted()) { select() }.decodeSingle<Loja>()
+            val inserted = from("lojas").insert(novaLoja) { select() }.decodeSingle<Loja>()
             inserted.id
         } else {
             existingLojas.first().id
@@ -92,7 +91,7 @@ class SupabaseClient(
         for (u in standardUsers) {
             if (existingUsers.none { it.matricula == u.matricula }) {
                 try {
-                    from("usuarios").insert(u.encrypted())
+                    from("usuarios").insert(u)
                     createdCount++
                 } catch (e: Exception) {
                     Log.w("SupabaseClient", "Usuário ${u.matricula} já pode existir ou erro: ${e.message}")

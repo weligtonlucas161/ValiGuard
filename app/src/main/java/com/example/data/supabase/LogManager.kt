@@ -2,8 +2,6 @@ package com.example.data.supabase
 
 import android.util.Log
 import com.example.util.CryptoUtils
-import com.example.util.decrypted
-import com.example.util.encrypted
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -85,7 +83,7 @@ object LogManager {
         // 2. Sincronizar assincronamente com Supabase (com criptografia ponta-a-ponta)
         scope.launch {
             try {
-                val remoteLog = newLog.encrypted()
+                val remoteLog = newLog.copy(detalhes = CryptoUtils.encrypt(newLog.detalhes))
                 SupabaseClient.instance.from("app_logs").insert(remoteLog)
             } catch (e: Exception) {
                 Log.d("LogManager", "Tabela 'app_logs' do Supabase não configurada ou erro: ${e.message}")
@@ -102,7 +100,7 @@ object LogManager {
             val remote = SupabaseClient.instance.from("app_logs")
                 .select { eq("usuario_matricula", matricula) }
                 .decodeList<AppLog>()
-                .map { it.decrypted() }
+                .map { it.copy(detalhes = CryptoUtils.decrypt(it.detalhes)) }
             // Combinar e desduplicar por ID
             val combined = (memoryList + remote).distinctBy { it.id }
             combined.sortedByDescending { it.timestamp }

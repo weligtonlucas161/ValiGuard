@@ -892,6 +892,7 @@ fun PresenceAuditView(
     onFinishAndGeneratePdf: () -> Unit
 ) {
     val context = LocalContext.current
+    var scanBarcodeQuery by remember { mutableStateOf("") }
     var presenceTab by remember { mutableIntStateOf(0) } // 0 = Pendentes, 1 = Bipados
 
     val pendingItems = remember(activeItems) { activeItems.filter { !it.isPresent } }
@@ -963,75 +964,53 @@ fun PresenceAuditView(
                         modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
                     )
 
-                    // Bipagem Antifraude Exclusiva pela Câmera (Sem digitação manual)
-                    Card(
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = BlueExpressive.copy(alpha = 0.15f)),
-                        border = androidx.compose.foundation.BorderStroke(1.5.dp, BlueExpressive),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { scanWithGoogle() }
-                            .testTag("btn_presence_bipar_camera_antifraude")
+                    // Bip Bar with textfield + button
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
+                        OutlinedTextField(
+                            value = scanBarcodeQuery,
+                            onValueChange = { scanBarcodeQuery = it },
+                            label = { Text("Bipar / Digitar Código") },
+                            placeholder = { Text("789...") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = {
+                                if (scanBarcodeQuery.isNotBlank()) {
+                                    onScanBarcode(scanBarcodeQuery)
+                                    scanBarcodeQuery = ""
+                                }
+                            }),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = DarkTextPrimary,
+                                focusedBorderColor = BlueExpressive,
+                                unfocusedBorderColor = DarkBorder
+                            ),
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                                .weight(1f)
+                                .testTag("presence_barcode_input")
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                if (scanBarcodeQuery.isNotBlank()) {
+                                    onScanBarcode(scanBarcodeQuery)
+                                    scanBarcodeQuery = ""
+                                } else {
+                                    scanWithGoogle()
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = BlueExpressive),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .height(56.dp)
+                                .testTag("btn_presence_bipar")
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = BlueExpressive,
-                                    modifier = Modifier.size(44.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.Default.QrCodeScanner,
-                                            contentDescription = "Câmera de Bipagem",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                    }
-                                }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text(
-                                        text = "Bipar com a Câmera",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp,
-                                        color = Color.White
-                                    )
-                                    Text(
-                                        text = "🔒 Exclusivo via câmera física para evitar fraudes",
-                                        fontSize = 11.sp,
-                                        color = Color(0xFF93C5FD),
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-                            }
-
-                            Button(
-                                onClick = { scanWithGoogle() },
-                                colors = ButtonDefaults.buttonColors(containerColor = BlueExpressive),
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.testTag("btn_presence_bipar")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.QrCodeScanner,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Escanear",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp
-                                )
-                            }
+                            Icon(Icons.Default.QrCodeScanner, contentDescription = null)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Bipar")
                         }
                     }
 
@@ -1149,8 +1128,7 @@ fun PresenceAuditView(
                         if (item.isPresent) {
                             onUnmarkItem(item.id)
                         } else {
-                            // Antifraude estrito: exige bipagem do código de barras pela câmera
-                            scanWithGoogle()
+                            onMarkItem(item.id)
                         }
                     }
                 )
@@ -1882,13 +1860,13 @@ fun PresenceItemCard(
             } else {
                 Button(
                     onClick = onTogglePresence,
-                    colors = ButtonDefaults.buttonColors(containerColor = BlueExpressive),
+                    colors = ButtonDefaults.buttonColors(containerColor = BlueExpressiveContainer),
                     shape = RoundedCornerShape(8.dp),
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.White)
+                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.White)
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Escanear", fontSize = 11.sp, color = Color.White)
+                    Text("Marcar", fontSize = 11.sp, color = Color.White)
                 }
             }
         }

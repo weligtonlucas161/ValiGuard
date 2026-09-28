@@ -45,19 +45,11 @@ object SessionHolder {
         get() = _currentUser.value != null
 
     val isAdm: Boolean
-        get() {
-            val c = _currentUser.value?.cargo?.trim()?.lowercase() ?: return false
-            return c in listOf("adm", "admin", "administrador") || c.startsWith("adm")
-        }
+        get() = _currentUser.value?.cargo.equals("adm", ignoreCase = true)
 
     val isMaster: Boolean
-        get() {
-            val u = _currentUser.value ?: return false
-            val c = u.cargo.trim().lowercase()
-            return c in listOf("master", "adm", "admin", "administrador", "gerente", "gestor", "diretor", "subgerente", "supervisor", "coordenador") ||
-                   c.contains("master") || c.contains("gerente") || c.contains("gestor") || c.contains("adm")
-        }
+        get() = _currentUser.value?.cargo.equals("master", ignoreCase = true)
 
     val isOperador: Boolean
-        get() = !isMaster
+        get() = _currentUser.value?.cargo.equals("operador", ignoreCase = true)
 }

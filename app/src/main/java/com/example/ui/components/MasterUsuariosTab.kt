@@ -345,19 +345,11 @@ fun MasterUsuariosTab(
                         erroValidacao = null
                         coroutineScope.launch {
                             try {
-                                val setorFinal = setorAtribuido.trim().ifBlank { null }
-                                val cargoNoBanco = com.example.data.CargoManager.normalizarCargoParaBanco(cargoSelecionado)
-                                com.example.data.CargoManager.salvarAtribuicaoUsuario(
-                                    context = context,
-                                    matricula = novaMatricula,
-                                    cargoNome = cargoSelecionado,
-                                    setor = setorFinal
-                                )
-                                val cleanNome = novoNome.trim()
+                                val setorFinal = setorAtribuido.ifBlank { null }
                                 val novoUsuario = NovoUsuario(
                                     matricula = novaMatricula,
-                                    nome = cleanNome,
-                                    cargo = cargoNoBanco,
+                                    nome = novoNome.trim(),
+                                    cargo = cargoSelecionado,
                                     loja_id = masterLojaId, // Vínculo estrito com a loja do master
                                     ativo = true,
                                     setor = setorFinal
@@ -368,7 +360,7 @@ fun MasterUsuariosTab(
                                     usuarioNome = SessionHolder.currentUser?.nome ?: "Master",
                                     lojaId = masterLojaId,
                                     acao = "CADASTRO_USUARIO",
-                                    detalhes = "Cadastrou colaborador '$cleanNome' (Matrícula: $novaMatricula, Função: $cargoSelecionado, Setor: ${setorFinal ?: "Geral"})"
+                                    detalhes = "Cadastrou colaborador '${novoUsuario.nome}' (Matrícula: ${novoUsuario.matricula}, Cargo: ${novoUsuario.cargo}, Setor: ${setorFinal ?: "Geral"})"
                                 )
                                 Toast.makeText(context, "Usuário cadastrado com sucesso!", Toast.LENGTH_SHORT).show()
                                 showAddDialog = false
@@ -619,9 +611,8 @@ fun MasterUsuariosTab(
                                         color = Color(0xFF93C5FD)
                                     )
                                     Text(text = "•", fontSize = 10.sp, color = DarkTextSecondary)
-                                    val cargoDisplay = com.example.data.CargoManager.getCargoCustomizado(context, usuario.matricula) ?: usuario.cargo
                                     Text(
-                                        text = cargoDisplay.uppercase(),
+                                        text = usuario.cargo.uppercase(),
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         color = Color(0xFFC084FC)

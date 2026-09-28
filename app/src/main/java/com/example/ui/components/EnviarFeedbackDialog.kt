@@ -22,8 +22,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.StarBorder
@@ -74,65 +74,6 @@ fun EnviarFeedbackDialog(
     val context = LocalContext.current
     val usuario = SessionHolder.currentUser
     val loja = SessionHolder.currentLoja
-    val isMaster = usuario?.cargo.equals("master", ignoreCase = true)
-
-    if (isMaster) {
-        Dialog(onDismissRequest = onDismiss) {
-            Card(
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = DarkSurfaceContainer),
-                border = BorderStroke(1.5.dp, Color(0xFFA855F7).copy(alpha = 0.5f)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .testTag("dialog_master_feedback_blocked")
-            ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = Color(0xFF581C87).copy(alpha = 0.3f),
-                        border = BorderStroke(1.dp, Color(0xFFA855F7)),
-                        modifier = Modifier.size(52.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.Business,
-                                contentDescription = null,
-                                tint = Color(0xFFC084FC),
-                                modifier = Modifier.size(26.dp)
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Text(
-                        text = "Envio Exclusivo para Colaboradores",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Apenas colaboradores com cargo abaixo de Master (operadores, conferentes, repositores, etc.) podem enviar sugestões e reportes ao gerenciamento.",
-                        fontSize = 12.sp,
-                        color = DarkTextSecondary
-                    )
-                    Spacer(modifier = Modifier.height(18.dp))
-                    Button(
-                        onClick = onDismiss,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9333EA)),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Entendido", fontWeight = FontWeight.Bold, color = Color.White)
-                    }
-                }
-            }
-        }
-        return
-    }
 
     // Destino: "ADM" (Melhorias no App) ou "MASTER" (Melhorias na Empresa/Loja)
     var destinoSelecionado by remember { mutableStateOf("ADM") }
@@ -230,7 +171,7 @@ fun EnviarFeedbackDialog(
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    imageVector = Icons.Default.Lock,
+                                    imageVector = Icons.Default.Security,
                                     contentDescription = null,
                                     tint = Color(0xFF10B981),
                                     modifier = Modifier.size(18.dp)
@@ -362,7 +303,7 @@ fun EnviarFeedbackDialog(
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = if (isParaAdm) {
-                        "💡 Sugestões sobre o aplicativo ValiGuard, novas funções, correções e suporte técnico."
+                        "💡 Sugestões sobre o aplicativo Synk, novas funções, correções e suporte técnico."
                     } else {
                         "🏢 Sugestões para o dia a dia da loja, rotinas operacionais, organização e processos."
                     },
@@ -454,7 +395,7 @@ fun EnviarFeedbackDialog(
                     },
                     placeholder = {
                         Text(
-                            if (isParaAdm) "Conte o que gostaria de ver no aplicativo ValiGuard ou reporte um problema..."
+                            if (isParaAdm) "Conte o que gostaria de ver no aplicativo Synk ou reporte um problema..."
                             else "Conte ideias para melhorar o ambiente de trabalho, rotinas ou infraestrutura da loja..."
                         )
                     },

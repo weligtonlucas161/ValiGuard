@@ -16,76 +16,6 @@ import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 object CargoManager {
     private const val PREFS_NAME = "cargos_loja_prefs"
     private const val KEY_CARGOS_JSON = "cargos_list_json"
-    private const val PREFS_USER_CARGOS = "user_cargos_map"
-
-    private val userCargoMap = java.util.concurrent.ConcurrentHashMap<String, String>()
-    private val userSetorMap = java.util.concurrent.ConcurrentHashMap<String, String>()
-
-    /**
-     * Normaliza qualquer cargo visual para um dos 3 valores permitidos pelo CHECK constraint do Postgres:
-     * 'adm', 'master', 'operador'.
-     */
-    fun normalizarCargoParaBanco(cargoOriginal: String): String {
-        val lower = cargoOriginal.trim().lowercase()
-        return when {
-            lower == "adm" || lower.startsWith("adm") || lower.contains("administrador") -> "adm"
-            lower == "master" || lower.startsWith("master") || lower.contains("gerente") -> "master"
-            else -> "operador"
-        }
-    }
-
-    /**
-     * Associa um cargo customizado e setor a uma matrícula específica.
-     */
-    fun salvarAtribuicaoUsuario(context: Context?, matricula: String, cargoNome: String, setor: String?) {
-        userCargoMap[matricula] = cargoNome
-        if (!setor.isNullOrBlank()) {
-            userSetorMap[matricula] = setor
-        } else {
-            userSetorMap.remove(matricula)
-        }
-        if (context != null) {
-            val prefs = context.getSharedPreferences(PREFS_USER_CARGOS, Context.MODE_PRIVATE)
-            prefs.edit()
-                .putString("cargo_$matricula", cargoNome)
-                .putString("setor_$matricula", setor ?: "")
-                .apply()
-        }
-    }
-
-    /**
-     * Obtém o nome rico do cargo (ex: "Operador - Hortifruti", "Operador de Carnes e Açougue") atribuído ao colaborador.
-     */
-    fun getCargoCustomizado(context: Context?, matricula: String): String? {
-        val inMem = userCargoMap[matricula]
-        if (!inMem.isNullOrBlank()) return inMem
-        if (context != null) {
-            val prefs = context.getSharedPreferences(PREFS_USER_CARGOS, Context.MODE_PRIVATE)
-            val saved = prefs.getString("cargo_$matricula", null)
-            if (!saved.isNullOrBlank()) {
-                userCargoMap[matricula] = saved
-                return saved
-            }
-        }
-        return null
-    }
-
-    /**
-     * Obtém o setor atribuído ao colaborador.
-     */
-    fun getSetorUsuario(context: Context?, matricula: String): String? {
-        val inMem = userSetorMap[matricula]
-        if (!inMem.isNullOrBlank()) return inMem
-        if (context != null) {
-            val prefs = context.getSharedPreferences(PREFS_USER_CARGOS, Context.MODE_PRIVATE)
-            val saved = prefs.getString("setor_$matricula", null)
-            if (!saved.isNullOrBlank()) {
-                userSetorMap[matricula] = saved
-                return saved
-            }
-        }
-        return null
-    }
 
     private val moshi: Moshi by lazy {
         Moshi.Builder()
@@ -200,24 +130,17 @@ object CargoManager {
         // ADM e Master SEMPRE têm acesso a todos os setores
         if (cargoLower == "adm" || cargoLower == "master") return null
 
-        // 1. Setor armazenado para a matrícula do usuário
-        val setorMapped = userSetorMap[usuario.matricula]?.trim()
-        if (!setorMapped.isNullOrEmpty() && !setorMapped.equals("Todos", ignoreCase = true) && !setorMapped.equals("Geral", ignoreCase = true)) {
-            return setorMapped
-        }
-
-        // 2. Campo explícito 'setor' no usuário
+        // 1. Campo explícito 'setor' no usuário
         val setorCampo = usuario.setor?.trim()
         if (!setorCampo.isNullOrEmpty() && !setorCampo.equals("Todos", ignoreCase = true) && !setorCampo.equals("Geral", ignoreCase = true)) {
             return setorCampo
         }
 
-        // 3. Extração pelo cargo customizado atribuído ou nome do cargo (ex: "Operador - Hortifruti", "Operador (Açougue)")
-        val cargoEfetivo = userCargoMap[usuario.matricula] ?: usuario.cargo
+        // 2. Extração pelo nome do cargo (ex: "Operador - Hortifruti", "Operador (Açougue)")
         val delimiters = listOf(" - ", " / ", " (", ":", " – ")
         for (delimiter in delimiters) {
-            if (cargoEfetivo.contains(delimiter)) {
-                val partes = cargoEfetivo.split(delimiter)
+            if (usuario.cargo.contains(delimiter)) {
+                val partes = usuario.cargo.split(delimiter)
                 if (partes.size > 1) {
                     val possivelSetor = partes[1].replace(")", "").trim()
                     if (possivelSetor.isNotEmpty() && !possivelSetor.equals("Geral", ignoreCase = true)) {
@@ -245,28 +168,5 @@ object CargoManager {
         return cleanProdSetor.equals(cleanRestricted, ignoreCase = true) ||
                 cleanProdSetor.contains(cleanRestricted, ignoreCase = true) ||
                 cleanRestricted.contains(cleanProdSetor, ignoreCase = true)
-    }
-
-    /**
-     * Valida se um determinado usuário possui perfil de nível Master / Gestor / Administrador
-     * da empresa, abrangendo qualquer variação de nomenclatura de cargos gerenciais.
-     */
-    fun isPerfilMaster(usuario: Usuario?, context: Context? = null): Boolean {
-        if (usuario == null) return false
-        val cargoLimpo = usuario.cargo.trim().lowercase()
-        val masterKeywords = listOf(
-            "master", "adm", "admin", "administrador", "gerente", "gestor",
-            "diretor", "subgerente", "supervisor", "coordenador", "encarregado geral"
-        )
-        if (cargoLimpo in masterKeywords) return true
-        if (masterKeywords.any { cargoLimpo.contains(it) }) return true
-
-        if (normalizarCargoParaBanco(usuario.cargo) in listOf("master", "adm")) return true
-
-        if (context != null) {
-            val custom = getCargoCustomizado(context, usuario.matricula)?.trim()?.lowercase() ?: ""
-            if (masterKeywords.any { custom.contains(it) }) return true
-        }
-        return false
     }
 }

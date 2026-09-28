@@ -76,7 +76,8 @@ import com.example.data.supabase.AtualizarLojaStatus
 import com.example.data.FeedbackManager
 import com.example.ui.components.AdmFeedbacksTab
 import com.example.ui.components.AdmTelemetriaTab
-import com.example.ui.components.GestaoEquipeScreen
+import com.example.ui.components.EditarUsuarioAdmDialog
+import com.example.ui.components.GerenciarUsuariosLojaDialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -104,8 +105,6 @@ import com.example.data.supabase.NovoUsuario
 import com.example.data.supabase.SessionHolder
 import com.example.data.supabase.SupabaseClient
 import com.example.data.supabase.Usuario
-import com.example.util.decrypted
-import com.example.util.encrypted
 import com.example.ui.components.SupabaseConfigDialog
 import com.example.ui.theme.BlueExpressive
 import com.example.ui.theme.BlueExpressiveContainer
@@ -137,18 +136,35 @@ fun AdmScreen(
 
     // Listas do Postgrest
     var lojasList by remember { mutableStateOf<List<Loja>>(emptyList()) }
+    var mastersList by remember { mutableStateOf<List<Usuario>>(emptyList()) }
+    var todosUsuariosList by remember { mutableStateOf<List<Usuario>>(emptyList()) }
     var isLoadingLojas by remember { mutableStateOf(false) }
+    var isLoadingUsuarios by remember { mutableStateOf(false) }
 
-    // Tab de navegação no painel ADM (0 = Lojas, 1 = Equipe & Logs, 2 = Feedbacks, 3 = Telemetria)
+    // Tab de navegação no painel ADM (0 = Lojas, 1 = Usuários, 2 = Feedbacks, 3 = Telemetria)
     var selectedTab by remember { mutableIntStateOf(0) }
+
+    // Filtros e diálogos de gerenciamento de usuário
+    var filterUsuarioCargo by remember { mutableStateOf("Todos") } // "Todos", "master", "operador"
+    var searchUsuarioQuery by remember { mutableStateOf("") }
+    var userToEdit by remember { mutableStateOf<Usuario?>(null) }
+    var userToDelete by remember { mutableStateOf<Usuario?>(null) }
+    var lojaParaGerenciarUsuarios by remember { mutableStateOf<Loja?>(null) }
     var feedbackCount by remember { mutableIntStateOf(0) }
-    var selectedLojaForEquipe by remember { mutableStateOf<Loja?>(null) }
 
     // Formulário Criação de Loja (Item 2)
     var nomeLojaInput by remember { mutableStateOf("") }
     var corBordaInput by remember { mutableStateOf("#2563EB") }
     var isCreatingLoja by remember { mutableStateOf(false) }
     var createdLojaConfirmDialog by remember { mutableStateOf<Loja?>(null) }
+
+    // Formulário Criação de Usuário Master (Item 3)
+    var selectedLojaParaMaster by remember { mutableStateOf<Loja?>(null) }
+    var matriculaMasterInput by remember { mutableStateOf("") }
+    var nomeMasterInput by remember { mutableStateOf("") }
+    var isCreatingMaster by remember { mutableStateOf(false) }
+    var createdMasterConfirmDialog by remember { mutableStateOf<Usuario?>(null) }
+    var lojaDropdownExpanded by remember { mutableStateOf(false) }
 
     var showConfigDialog by remember { mutableStateOf(false) }
 
@@ -159,12 +175,35 @@ fun AdmScreen(
             try {
                 withTimeout(8000) {
                     val result = supabase.from("lojas").select().decodeList<Loja>()
-                    lojasList = result.map { it.decrypted() }
+                    lojasList = result
+                    if (selectedLojaParaMaster == null && result.isNotEmpty()) {
+                        selectedLojaParaMaster = result.first()
+                    }
                 }
             } catch (e: Exception) {
                 snackbarHostState.showSnackbar("Aviso lojas: ${e.localizedMessage ?: "falha de leitura"}")
             } finally {
                 isLoadingLojas = false
+            }
+        }
+    }
+
+    // Função para carregar todos os usuários
+    fun loadTodosUsuarios() {
+        isLoadingUsuarios = true
+        coroutineScope.launch {
+            try {
+                withTimeout(8000) {
+                    val result = supabase.from("usuarios")
+                        .select()
+                        .decodeList<Usuario>()
+                    todosUsuariosList = result
+                    mastersList = result.filter { it.cargo.equals("master", ignoreCase = true) }
+                }
+            } catch (e: Exception) {
+                snackbarHostState.showSnackbar("Aviso usuários: ${e.localizedMessage ?: "falha de leitura"}")
+            } finally {
+                isLoadingUsuarios = false
             }
         }
     }
@@ -193,8 +232,31 @@ fun AdmScreen(
         }
     }
 
+    // Excluir usuário do Supabase
+    fun excluirUsuario(usuario: Usuario) {
+        coroutineScope.launch {
+            try {
+                withTimeout(8000) {
+                    supabase.from("usuarios").delete {
+                        eq("matricula", usuario.matricula)
+                    }
+                    todosUsuariosList = todosUsuariosList.filter { it.matricula != usuario.matricula }
+                    mastersList = mastersList.filter { it.matricula != usuario.matricula }
+                    snackbarHostState.showSnackbar("Usuário ${usuario.nome} excluído com sucesso.")
+                }
+            } catch (e: Exception) {
+                snackbarHostState.showSnackbar("Erro ao excluir usuário: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    fun loadMasters() {
+        loadTodosUsuarios()
+    }
+
     LaunchedEffect(Unit) {
         loadLojas()
+        loadTodosUsuarios()
         feedbackCount = FeedbackManager.getFeedbacks(context).count { it.status.equals("pendente", ignoreCase = true) }
     }
 
@@ -218,9 +280,8 @@ fun AdmScreen(
                     // Inserção direta via Postgrest conforme especificado no item 2:
                     // .insert(NovaLoja(nome_loja, cor_borda)) { select() }.decodeSingle<Loja>()
                     val novaLoja = supabase.from("lojas")
-                        .insert(NovaLoja(nome_loja = cleanNome, cor_borda = cleanCor).encrypted()) { select() }
+                        .insert(NovaLoja(nome_loja = cleanNome, cor_borda = cleanCor)) { select() }
                         .decodeSingle<Loja>()
-                        .decrypted()
 
                     createdLojaConfirmDialog = novaLoja
                     nomeLojaInput = ""
@@ -233,6 +294,58 @@ fun AdmScreen(
                 snackbarHostState.showSnackbar("Erro ao criar loja: ${e.localizedMessage ?: "Erro desconhecido"}")
             } finally {
                 isCreatingLoja = false
+            }
+        }
+    }
+
+    // Item 3: Criação de Usuário Master pelo ADM
+    fun criarUsuarioMaster() {
+        val loja = selectedLojaParaMaster
+        if (loja == null) {
+            coroutineScope.launch { snackbarHostState.showSnackbar("Selecione uma loja para vincular o Master.") }
+            return
+        }
+        val cleanMatricula = matriculaMasterInput.trim()
+        val cleanNome = nomeMasterInput.trim()
+
+        if (cleanMatricula.length != 6 || !cleanMatricula.all { it.isDigit() }) {
+            coroutineScope.launch { snackbarHostState.showSnackbar("A matrícula do Master deve ter exatamente 6 dígitos numéricos.") }
+            return
+        }
+        if (cleanNome.isEmpty()) {
+            coroutineScope.launch { snackbarHostState.showSnackbar("Informe o nome do Master.") }
+            return
+        }
+
+        isCreatingMaster = true
+        coroutineScope.launch {
+            try {
+                withTimeout(8000) {
+                    // Inserir na tabela 'usuarios' com cargo = "master" e loja_id = UUID da loja selecionada
+                    val novoMaster = supabase.from("usuarios")
+                        .insert(
+                            NovoUsuario(
+                                matricula = cleanMatricula,
+                                nome = cleanNome,
+                                cargo = "master",
+                                loja_id = loja.id,
+                                ativo = true
+                            )
+                        ) { select() }
+                        .decodeSingle<Usuario>()
+
+                    createdMasterConfirmDialog = novoMaster
+                    matriculaMasterInput = ""
+                    nomeMasterInput = ""
+                    // Recarrega a lista de masters
+                    loadMasters()
+                }
+            } catch (e: TimeoutCancellationException) {
+                snackbarHostState.showSnackbar("Tempo limite de 8s excedido ao cadastrar Master.")
+            } catch (e: Exception) {
+                snackbarHostState.showSnackbar("Erro ao cadastrar Master: ${e.localizedMessage ?: "Erro desconhecido"}")
+            } finally {
+                isCreatingMaster = false
             }
         }
     }
@@ -279,17 +392,6 @@ fun AdmScreen(
                     }
                 },
                 actions = {
-                    IconButton(
-                        onClick = { selectedTab = 1 },
-                        modifier = Modifier.testTag("adm_equipe_btn")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Group,
-                            contentDescription = "Gestão de Equipe",
-                            tint = Color(0xFF93C5FD)
-                        )
-                    }
-
                     IconButton(
                         onClick = { showConfigDialog = true },
                         modifier = Modifier.testTag("adm_config_btn")
@@ -356,9 +458,9 @@ fun AdmScreen(
                     onClick = { selectedTab = 1 },
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Group, contentDescription = null, modifier = Modifier.size(15.dp), tint = Color(0xFFC084FC))
+                            Icon(Icons.Default.Group, contentDescription = null, modifier = Modifier.size(15.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Equipe", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text("Usuários (${todosUsuariosList.size})", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
                     },
                     selectedContentColor = Color.White,
@@ -589,6 +691,7 @@ fun AdmScreen(
                     } else {
                         items(lojasList, key = { it.id }) { loja ->
                             val borderColor = parseHexColor(loja.cor_borda)
+                            val usuariosDaLoja = todosUsuariosList.filter { it.loja_id == loja.id }
                             Card(
                                 shape = RoundedCornerShape(14.dp),
                                 colors = CardDefaults.cardColors(containerColor = DarkSurfaceContainer),
@@ -659,6 +762,20 @@ fun AdmScreen(
                                                         text = "Cor: ${loja.cor_borda}",
                                                         fontSize = 10.sp,
                                                         color = borderColor,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    )
+                                                }
+
+                                                // Contagem de usuários na loja
+                                                Surface(
+                                                    shape = RoundedCornerShape(6.dp),
+                                                    color = Color(0xFF3B82F6).copy(alpha = 0.2f)
+                                                ) {
+                                                    Text(
+                                                        text = "👥 ${usuariosDaLoja.size} usuário(s)",
+                                                        fontSize = 10.sp,
+                                                        color = Color(0xFF93C5FD),
                                                         fontWeight = FontWeight.SemiBold,
                                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                                     )
@@ -737,22 +854,30 @@ fun AdmScreen(
 
                                     Spacer(modifier = Modifier.height(8.dp))
 
+                                    // Botão de Gerenciar / Ver Usuários da Loja
                                     Button(
-                                        onClick = {
-                                            selectedLojaForEquipe = loja
-                                            selectedTab = 1
-                                        },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF581C87)),
+                                        onClick = { lojaParaGerenciarUsuarios = loja },
+                                        colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceContainerHigh),
                                         shape = RoundedCornerShape(10.dp),
+                                        border = BorderStroke(1.dp, DarkBorder),
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .testTag("btn_equipe_loja_${loja.id}")
+                                            .testTag("btn_gerenciar_usuarios_${loja.id}")
                                     ) {
-                                        Icon(Icons.Default.Group, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Gerenciar Equipe & Logs da Empresa", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        Icon(
+                                            imageVector = Icons.Default.People,
+                                            contentDescription = null,
+                                            tint = BlueExpressive,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "Gerenciar / Excluir / Editar Usuários (${usuariosDaLoja.size})",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color.White
+                                        )
                                     }
-
                                 }
                             }
                         }
@@ -760,27 +885,493 @@ fun AdmScreen(
                 }
             }
 
-            // Conteúdo da Aba 1: GESTÃO DE EQUIPE E LOGS
+            // Conteúdo da Aba 1: CRIAÇÃO E GESTÃO DE USUÁRIOS MASTERS (Item 3)
             if (selectedTab == 1) {
-                val activeLoja = selectedLojaForEquipe ?: lojasList.firstOrNull()
-                GestaoEquipeScreen(
-                    lojaIdOverride = activeLoja?.id ?: currentUser?.loja_id,
-                    lojaNomeOverride = activeLoja?.nome_loja
-                )
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    // Formulário Item 3
+                    item {
+                        Card(
+                            shape = RoundedCornerShape(18.dp),
+                            colors = CardDefaults.cardColors(containerColor = DarkSurfaceContainer),
+                            border = BorderStroke(1.dp, DarkBorder),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(18.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.PersonAdd,
+                                        contentDescription = null,
+                                        tint = Color(0xFF10B981),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Cadastrar Usuário Master (Item 3)",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                }
+
+                                Text(
+                                    text = "O ADM seleciona a Loja, define a matrícula de 6 dígitos e nome. O registro é salvo com cargo = 'master'.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = DarkTextSecondary,
+                                    modifier = Modifier.padding(top = 4.dp, bottom = 14.dp)
+                                )
+
+                                // Seletor de Loja (Dropdown Exposed)
+                                ExposedDropdownMenuBox(
+                                    expanded = lojaDropdownExpanded,
+                                    onExpandedChange = { lojaDropdownExpanded = !lojaDropdownExpanded }
+                                ) {
+                                    OutlinedTextField(
+                                        value = selectedLojaParaMaster?.let { "${it.nome_loja} (${it.id.take(8)}...)" } ?: "Selecione uma loja...",
+                                        onValueChange = {},
+                                        readOnly = true,
+                                        label = { Text("Loja Vinculada") },
+                                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = lojaDropdownExpanded) },
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedTextColor = Color.White,
+                                            unfocusedTextColor = DarkTextPrimary,
+                                            focusedBorderColor = BlueExpressive,
+                                            unfocusedBorderColor = DarkBorder
+                                        ),
+                                        modifier = Modifier
+                                            .menuAnchor()
+                                            .fillMaxWidth()
+                                            .testTag("dropdown_loja_master")
+                                    )
+
+                                    ExposedDropdownMenu(
+                                        expanded = lojaDropdownExpanded,
+                                        onDismissRequest = { lojaDropdownExpanded = false },
+                                        modifier = Modifier.background(DarkSurfaceContainerHigh)
+                                    ) {
+                                        lojasList.forEach { loja ->
+                                            DropdownMenuItem(
+                                                text = {
+                                                    Text(loja.nome_loja, fontWeight = FontWeight.Medium, color = Color.White)
+                                                },
+                                                onClick = {
+                                                    selectedLojaParaMaster = loja
+                                                    lojaDropdownExpanded = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                OutlinedTextField(
+                                    value = matriculaMasterInput,
+                                    onValueChange = { input ->
+                                        if (input.length <= 6 && input.all { it.isDigit() }) {
+                                            matriculaMasterInput = input
+                                        }
+                                    },
+                                    label = { Text("Matrícula (6 Dígitos Numéricos)") },
+                                    placeholder = { Text("Ex: 123456") },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = DarkTextPrimary,
+                                        focusedBorderColor = BlueExpressive,
+                                        unfocusedBorderColor = DarkBorder
+                                    ),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("input_matricula_master")
+                                )
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                OutlinedTextField(
+                                    value = nomeMasterInput,
+                                    onValueChange = { nomeMasterInput = it },
+                                    label = { Text("Nome do Usuário Master") },
+                                    placeholder = { Text("Ex: Carlos Gerente Master") },
+                                    singleLine = true,
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = DarkTextPrimary,
+                                        focusedBorderColor = BlueExpressive,
+                                        unfocusedBorderColor = DarkBorder
+                                    ),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("input_nome_master")
+                                )
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                Button(
+                                    onClick = { criarUsuarioMaster() },
+                                    enabled = !isCreatingMaster,
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF059669)),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp)
+                                        .testTag("btn_cadastrar_master")
+                                ) {
+                                    if (isCreatingMaster) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(18.dp),
+                                            color = Color.White,
+                                            strokeWidth = 2.dp
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Cadastrando Master...", color = Color.White, fontWeight = FontWeight.Bold)
+                                    } else {
+                                        Icon(Icons.Default.PersonAdd, contentDescription = null, tint = Color.White)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Cadastrar Usuário Master", color = Color.White, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Título e Filtros da Lista de Usuários
+                    item {
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Usuários do Sistema (${todosUsuariosList.size})",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = DarkTextPrimary
+                                )
+                                IconButton(onClick = { loadTodosUsuarios() }) {
+                                    Icon(Icons.Default.Refresh, contentDescription = "Recarregar", tint = BlueExpressive)
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            // Campo de Busca de Usuário
+                            OutlinedTextField(
+                                value = searchUsuarioQuery,
+                                onValueChange = { searchUsuarioQuery = it },
+                                placeholder = { Text("Buscar por nome ou matrícula...") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = DarkTextPrimary,
+                                    focusedBorderColor = BlueExpressive,
+                                    unfocusedBorderColor = DarkBorder
+                                )
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Chips de Filtro de Cargo
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                FilterChip(
+                                    selected = filterUsuarioCargo == "Todos",
+                                    onClick = { filterUsuarioCargo = "Todos" },
+                                    label = { Text("Todos (${todosUsuariosList.size})", fontSize = 11.sp) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = BlueExpressive,
+                                        selectedLabelColor = Color.White
+                                    )
+                                )
+                                FilterChip(
+                                    selected = filterUsuarioCargo == "master",
+                                    onClick = { filterUsuarioCargo = "master" },
+                                    label = { Text("Masters (${mastersList.size})", fontSize = 11.sp) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = Color(0xFF059669),
+                                        selectedLabelColor = Color.White
+                                    )
+                                )
+                                FilterChip(
+                                    selected = filterUsuarioCargo == "operador",
+                                    onClick = { filterUsuarioCargo = "operador" },
+                                    label = {
+                                        val opCount = todosUsuariosList.count { it.cargo.equals("operador", true) }
+                                        Text("Operadores ($opCount)", fontSize = 11.sp)
+                                    },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = Color(0xFF2563EB),
+                                        selectedLabelColor = Color.White
+                                    )
+                                )
+                            }
+                        }
+                    }
+
+                    // Lista de Usuários Filtrados
+                    val filteredUsuarios = todosUsuariosList.filter { user ->
+                        val matchesCargo = when (filterUsuarioCargo) {
+                            "master" -> user.cargo.equals("master", ignoreCase = true)
+                            "operador" -> user.cargo.equals("operador", ignoreCase = true)
+                            else -> true
+                        }
+                        val matchesSearch = searchUsuarioQuery.isBlank() ||
+                                user.nome.contains(searchUsuarioQuery, ignoreCase = true) ||
+                                user.matricula.contains(searchUsuarioQuery)
+                        matchesCargo && matchesSearch
+                    }
+
+                    if (filteredUsuarios.isEmpty()) {
+                        item {
+                            Card(
+                                shape = RoundedCornerShape(14.dp),
+                                colors = CardDefaults.cardColors(containerColor = DarkSurfaceContainer),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(24.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("Nenhum usuário encontrado.", color = DarkTextSecondary, fontSize = 13.sp)
+                                }
+                            }
+                        }
+                    } else {
+                        items(filteredUsuarios, key = { it.matricula }) { user ->
+                            val lojaVinculada = lojasList.firstOrNull { it.id == user.loja_id }
+                            val isMasterRole = user.cargo.equals("master", true)
+                            val isAdmRole = user.cargo.equals("adm", true)
+
+                            val badgeBg = when {
+                                isAdmRole -> Color(0xFF78350F)
+                                isMasterRole -> Color(0xFF065F46)
+                                else -> Color(0xFF1E3A8A)
+                            }
+                            val badgeColor = when {
+                                isAdmRole -> Color(0xFFFDE68A)
+                                isMasterRole -> Color(0xFFA7F3D0)
+                                else -> Color(0xFFBFDBFE)
+                            }
+
+                            Card(
+                                shape = RoundedCornerShape(14.dp),
+                                colors = CardDefaults.cardColors(containerColor = DarkSurfaceContainer),
+                                border = BorderStroke(1.dp, if (!user.ativo) RedExpressive.copy(alpha = 0.5f) else DarkBorder),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = badgeBg,
+                                        modifier = Modifier.size(40.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Text(
+                                                text = user.nome.take(1).uppercase(),
+                                                color = badgeColor,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 18.sp
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.width(12.dp))
+
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = user.nome,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 15.sp,
+                                                color = Color.White
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Surface(
+                                                shape = RoundedCornerShape(6.dp),
+                                                color = badgeBg
+                                            ) {
+                                                Text(
+                                                    text = user.cargo.uppercase(),
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = badgeColor,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                )
+                                            }
+
+                                            if (!user.ativo) {
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Surface(
+                                                    shape = RoundedCornerShape(6.dp),
+                                                    color = RedExpressive.copy(alpha = 0.2f)
+                                                ) {
+                                                    Text(
+                                                        text = "INATIVO",
+                                                        fontSize = 9.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = RedExpressive,
+                                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        Text(
+                                            text = "Matrícula: ${user.matricula}",
+                                            fontSize = 12.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            color = Color(0xFF93C5FD),
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+
+                                        Text(
+                                            text = "Loja: ${lojaVinculada?.nome_loja ?: user.loja_id}",
+                                            fontSize = 11.sp,
+                                            color = DarkTextSecondary
+                                        )
+                                    }
+
+                                    // Botões de Ação: Editar e Excluir Usuário
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        IconButton(
+                                            onClick = { userToEdit = user },
+                                            modifier = Modifier.size(36.dp).testTag("btn_edit_user_${user.matricula}")
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Edit,
+                                                contentDescription = "Editar Usuário",
+                                                tint = BlueExpressive,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+
+                                        IconButton(
+                                            onClick = { userToDelete = user },
+                                            modifier = Modifier.size(36.dp).testTag("btn_delete_user_${user.matricula}")
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Delete,
+                                                contentDescription = "Excluir Usuário",
+                                                tint = RedExpressive,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
-            // Conteúdo da Aba 2: MELHORIAS E FEEDBACKS DO APP
+            // Conteúdo da Aba 2: FEEDBACKS DOS USUÁRIOS
             if (selectedTab == 2) {
                 AdmFeedbacksTab()
             }
 
-            // Conteúdo da Aba 3: DASHBOARD DE TELEMETRIA DO APP
+            // Conteúdo da Aba 3: DASHBOARD DE TELEMETRIA
             if (selectedTab == 3) {
                 AdmTelemetriaTab(
-                    lojasList = lojasList
+                    lojasList = lojasList,
+                    usuariosList = todosUsuariosList
                 )
             }
         }
+    }
+
+    // Modal de Edição de Usuário
+    userToEdit?.let { usuario ->
+        EditarUsuarioAdmDialog(
+            usuario = usuario,
+            lojasList = lojasList,
+            onDismiss = { userToEdit = null },
+            onUsuarioSalvo = {
+                userToEdit = null
+                loadTodosUsuarios()
+            }
+        )
+    }
+
+    // Confirmação de Exclusão de Usuário
+    userToDelete?.let { usuario ->
+        AlertDialog(
+            onDismissRequest = { userToDelete = null },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = null,
+                    tint = RedExpressive,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Excluir Usuário?",
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Tem certeza que deseja excluir permanentemente o usuário \"${usuario.nome}\"?",
+                        color = DarkTextPrimary,
+                        fontSize = 14.sp
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Matrícula: ${usuario.matricula} • Cargo: ${usuario.cargo.uppercase()}",
+                        color = Color(0xFF93C5FD),
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val toDelete = usuario
+                        userToDelete = null
+                        excluirUsuario(toDelete)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = RedExpressive)
+                ) {
+                    Text("Excluir", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { userToDelete = null }) {
+                    Text("Cancelar", color = DarkTextSecondary)
+                }
+            },
+            containerColor = DarkSurfaceContainer,
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+
+    // Modal de Gerenciamento de Usuários de uma Loja Específica
+    lojaParaGerenciarUsuarios?.let { loja ->
+        GerenciarUsuariosLojaDialog(
+            loja = loja,
+            todasLojas = lojasList,
+            onDismiss = { lojaParaGerenciarUsuarios = null },
+            onListaAlterada = {
+                loadTodosUsuarios()
+            }
+        )
     }
 
     // Diálogo de confirmação de criação de loja com UUID (Item 2)
@@ -865,6 +1456,73 @@ fun AdmScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = BlueExpressive)
                 ) {
                     Text("OK", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            containerColor = DarkSurfaceContainer,
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+
+    // Diálogo de confirmação de criação de Master (Item 3)
+    createdMasterConfirmDialog?.let { master ->
+        AlertDialog(
+            onDismissRequest = { createdMasterConfirmDialog = null },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = EmeraldSafe,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Usuário Master Cadastrado!",
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "O usuário Master foi cadastrado com sucesso e já pode fazer login pelo número de matrícula.",
+                        color = DarkTextSecondary,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(bottom = 10.dp)
+                    )
+
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = DarkSurfaceContainerHigh,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("Nome:", fontSize = 11.sp, color = DarkTextSecondary)
+                            Text(master.nome, fontWeight = FontWeight.Bold, color = Color.White, fontSize = 14.sp)
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Text("Matrícula de Login:", fontSize = 11.sp, color = DarkTextSecondary)
+                            Text(master.matricula, fontWeight = FontWeight.Bold, color = Color(0xFF93C5FD), fontSize = 16.sp, fontFamily = FontFamily.Monospace)
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Text("Cargo: ${master.cargo.uppercase()}", fontSize = 12.sp, color = Color(0xFFA7F3D0), fontWeight = FontWeight.Bold)
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            val lojaVinculadaNome = lojasList.find { it.id == master.loja_id }?.nome_loja ?: "Loja Vinculada"
+                            Text("Loja Vinculada: $lojaVinculadaNome", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { createdMasterConfirmDialog = null },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF059669))
+                ) {
+                    Text("Concluir", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             },
             containerColor = DarkSurfaceContainer,

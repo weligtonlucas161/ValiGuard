@@ -26,11 +26,11 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Feedback
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.MarkEmailRead
+import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Reply
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -210,7 +210,7 @@ fun AdmFeedbacksTab(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.Build,
+                    imageVector = Icons.Default.PhoneAndroid,
                     contentDescription = null,
                     tint = Color(0xFFF59E0B),
                     modifier = Modifier.size(18.dp)
@@ -486,7 +486,7 @@ private fun CardFeedbackItem(
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                imageVector = Icons.Default.Lock,
+                                imageVector = Icons.Default.Security,
                                 contentDescription = null,
                                 tint = Color(0xFFF59E0B),
                                 modifier = Modifier.size(18.dp)

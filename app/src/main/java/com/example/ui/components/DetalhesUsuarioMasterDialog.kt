@@ -3,7 +3,6 @@ package com.example.ui.components
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -194,16 +193,9 @@ fun DetalhesUsuarioMasterDialog(
         coroutineScope.launch {
             try {
                 val setorFinal = editSetor.trim().ifBlank { null }
-                val cargoNoBanco = com.example.data.CargoManager.normalizarCargoParaBanco(editCargo)
-                com.example.data.CargoManager.salvarAtribuicaoUsuario(
-                    context = context,
-                    matricula = currentUsuarioState.matricula,
-                    cargoNome = editCargo,
-                    setor = setorFinal
-                )
                 val updateObj = AtualizarUsuario(
                     nome = editNome.trim(),
-                    cargo = cargoNoBanco,
+                    cargo = editCargo,
                     ativo = currentUsuarioState.ativo,
                     setor = setorFinal
                 )
@@ -213,7 +205,7 @@ fun DetalhesUsuarioMasterDialog(
 
                 val updated = currentUsuarioState.copy(
                     nome = editNome.trim(),
-                    cargo = cargoNoBanco,
+                    cargo = editCargo,
                     setor = setorFinal
                 )
                 currentUsuarioState = updated
@@ -547,68 +539,6 @@ fun DetalhesUsuarioMasterDialog(
                                         ),
                                         enabled = !isSaving
                                     )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(14.dp))
-
-                            // Card de Acesso Rápido aos Logs de Movimentação do Usuário
-                            Card(
-                                shape = RoundedCornerShape(14.dp),
-                                colors = CardDefaults.cardColors(containerColor = DarkSurfaceContainer),
-                                border = BorderStroke(1.dp, Color(0xFFA855F7).copy(alpha = 0.5f)),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { selectedTab = 1 }
-                            ) {
-                                Column(modifier = Modifier.padding(14.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(Icons.Default.History, contentDescription = null, tint = Color(0xFFC084FC), modifier = Modifier.size(18.dp))
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text(
-                                                text = "Movimentações Gravadas (${userLogs.size})",
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 13.sp,
-                                                color = Color.White
-                                            )
-                                        }
-                                        Text(
-                                            text = "Ver Histórico →",
-                                            fontSize = 11.sp,
-                                            color = Color(0xFFC084FC),
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                    if (userLogs.isNotEmpty()) {
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        val preview = userLogs.take(2)
-                                        preview.forEach { logItem ->
-                                            val timeStr = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()).format(Date(logItem.timestamp))
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                                                horizontalArrangement = Arrangement.SpaceBetween
-                                            ) {
-                                                Text(
-                                                    text = "• ${logItem.detalhes.take(38)}${if (logItem.detalhes.length > 38) "..." else ""}",
-                                                    fontSize = 11.sp,
-                                                    color = DarkTextSecondary
-                                                )
-                                                Text(timeStr, fontSize = 10.sp, color = Color(0xFF93C5FD))
-                                            }
-                                        }
-                                    } else {
-                                        Spacer(modifier = Modifier.height(6.dp))
-                                        Text(
-                                            text = "Nenhum log gravado no banco até o momento.",
-                                            fontSize = 11.sp,
-                                            color = DarkTextSecondary
-                                        )
-                                    }
                                 }
                             }
 

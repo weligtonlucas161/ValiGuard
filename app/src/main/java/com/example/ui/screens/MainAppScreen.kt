@@ -38,7 +38,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
@@ -123,7 +122,6 @@ import com.example.ui.components.AddProdutoDialog
 import com.example.ui.components.AuditoriaHubScreen
 import com.example.ui.components.DetalhesProdutoDialog
 import com.example.ui.components.GerenciarSetoresDialog
-import com.example.ui.components.GestaoEquipeScreen
 import com.example.ui.components.MasterUsuariosTab
 import com.example.ui.components.MonitoramentoAcoesDialog
 import com.example.ui.components.PlanilhaImportDialog
@@ -157,8 +155,8 @@ enum class OperadorMenu(val label: String, val icon: ImageVector) {
     DASHBOARD("Dashboard", Icons.Default.Dashboard),
     MONITORAMENTO("Monitoramento", Icons.Default.HourglassBottom),
     ESTOQUE("Estoque", Icons.Default.Inventory2),
-    AUDITORIA("Auditoria", Icons.Default.FactCheck),
-    EQUIPE("Equipe", Icons.Default.Group)
+    USUARIOS("Usuários", Icons.Default.Group),
+    AUDITORIA("Auditoria", Icons.Default.FactCheck)
 }
 
 enum class ExpiryStatus(val title: String, val color: Color, val icon: ImageVector) {
@@ -307,8 +305,8 @@ fun MainAppScreen(
         produtosWithDays.filter { it.second > 15 }
     }
 
-    val isMaster = SessionHolder.isMaster || com.example.data.CargoManager.isPerfilMaster(currentUser, context)
-    val isAdm = SessionHolder.isAdm
+    val isMaster = currentUser.cargo.equals("master", ignoreCase = true)
+    val isAdm = currentUser.cargo.equals("adm", ignoreCase = true)
     val roleAccentColor = when {
         isAdm -> Color(0xFFEAB308)     // Amarelo para ADM
         isMaster -> Color(0xFFA855F7)  // Roxo para Master
@@ -351,15 +349,22 @@ fun MainAppScreen(
         roleAccentColor
     }
 
-    val navItems = remember(isMaster, isAdm) {
-        buildList {
-            add(OperadorMenu.DASHBOARD)
-            add(OperadorMenu.MONITORAMENTO)
-            add(OperadorMenu.ESTOQUE)
-            add(OperadorMenu.AUDITORIA)
-            if (isMaster || isAdm) {
-                add(OperadorMenu.EQUIPE)
-            }
+    val navItems = remember(isMaster) {
+        if (isMaster) {
+            listOf(
+                OperadorMenu.DASHBOARD,
+                OperadorMenu.MONITORAMENTO,
+                OperadorMenu.ESTOQUE,
+                OperadorMenu.USUARIOS,
+                OperadorMenu.AUDITORIA
+            )
+        } else {
+            listOf(
+                OperadorMenu.DASHBOARD,
+                OperadorMenu.MONITORAMENTO,
+                OperadorMenu.ESTOQUE,
+                OperadorMenu.AUDITORIA
+            )
         }
     }
 
@@ -418,18 +423,6 @@ fun MainAppScreen(
                     }
                 },
                 actions = {
-                    if (isMaster || isAdm) {
-                        IconButton(
-                            onClick = { currentTab = OperadorMenu.EQUIPE },
-                            modifier = Modifier.testTag("btn_gestao_equipe_topbar")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Group,
-                                contentDescription = "Gestão de Equipe e Logs",
-                                tint = roleAccentColor
-                            )
-                        }
-                    }
                     if (isMaster) {
                         IconButton(
                             onClick = { showGerenciarSetores = true },
@@ -442,18 +435,16 @@ fun MainAppScreen(
                             )
                         }
                     }
-                    // Ícone de Estrela: Enviar Feedback ao ADM / Loja (Apenas para colaboradores abaixo de Master)
-                    if (!isMaster) {
-                        IconButton(
-                            onClick = { showFeedbackDialog = true },
-                            modifier = Modifier.testTag("btn_feedback_star")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Star,
-                                contentDescription = "Enviar Feedback",
-                                tint = Color(0xFFFBBF24)
-                            )
-                        }
+                    // Ícone de Estrela: Enviar Feedback ao ADM
+                    IconButton(
+                        onClick = { showFeedbackDialog = true },
+                        modifier = Modifier.testTag("btn_feedback_star")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = "Enviar Feedback ao ADM",
+                            tint = Color(0xFFFBBF24)
+                        )
                     }
                     IconButton(
                         onClick = { loadProdutos() },
@@ -467,13 +458,6 @@ fun MainAppScreen(
                     }
                     IconButton(
                         onClick = {
-                            LogManager.recordLog(
-                                usuarioMatricula = currentUser.matricula,
-                                usuarioNome = currentUser.nome,
-                                lojaId = currentUser.loja_id,
-                                acao = "LOGOUT",
-                                detalhes = "Usuário '${currentUser.nome}' encerrou a sessão no dispositivo"
-                            )
                             SessionHolder.clearSession()
                             onLogout()
                         },
@@ -595,14 +579,16 @@ fun MainAppScreen(
                     onRefresh = { loadProdutos() }
                 )
 
+                OperadorMenu.USUARIOS -> {
+                    MasterUsuariosTab(
+                        masterLojaId = currentUser.loja_id,
+                        masterLojaNome = currentLoja?.nome_loja ?: "Loja Vinculada"
+                    )
+                }
+
                 OperadorMenu.AUDITORIA -> AuditoriaHubScreen(
                     produtos = produtos,
                     onRefreshProdutos = { loadProdutos() }
-                )
-
-                OperadorMenu.EQUIPE -> GestaoEquipeScreen(
-                    lojaIdOverride = currentUser.loja_id,
-                    lojaNomeOverride = currentLoja?.nome_loja
                 )
             }
         }
@@ -733,7 +719,6 @@ fun DashboardContent(
     onNavigateToEstoque: (String?) -> Unit,
     onAddProdutoClick: () -> Unit
 ) {
-    val context = LocalContext.current
     val userRestrictedSector = remember(currentUser) { com.example.data.CargoManager.resolveUserSector(currentUser) }
     var selectedSectorFilter by remember(userRestrictedSector) { mutableStateOf(userRestrictedSector ?: "Todos") }
 
@@ -767,7 +752,7 @@ fun DashboardContent(
     val aVencer15DiasCount = aVencer15Dias.size
     val noPrazoCount = noPrazo.size
 
-    val isMaster = SessionHolder.isMaster || com.example.data.CargoManager.isPerfilMaster(currentUser, context)
+    val isMaster = currentUser.cargo.equals("master", ignoreCase = true)
 
     Column(
         modifier = Modifier
@@ -1931,30 +1916,14 @@ fun EstoqueContent(
     var produtoParaExcluir by remember { mutableStateOf<Produto?>(null) }
     var produtoParaEditar by remember { mutableStateOf<Produto?>(null) }
 
-    // Filtros de setores estritamente dinâmicos baseados nos produtos presentes no estoque da loja
-    val setoresPresentes = remember(produtos) {
-        val setoresEncontrados = produtos
-            .map { it.setor.trim() }
-            .filter { it.isNotBlank() }
-            .distinct()
-            .sorted()
-        listOf("Todos") + setoresEncontrados
-    }
-
-    // Se o setor anteriormente selecionado não existir mais entre os produtos em estoque, reseta para "Todos"
-    LaunchedEffect(setoresPresentes, selectedSetor) {
-        if (selectedSetor != "Todos" && !setoresPresentes.any { it.equals(selectedSetor, ignoreCase = true) }) {
-            onSetorSelected("Todos")
-        }
-    }
+    val setores = listOf("Todos", "Laticínios", "Mercearia", "Padaria", "Açougue", "Hortifruti", "Fiambreria", "Bebidas")
 
     val filteredList = remember(produtos, searchQuery, selectedSetor) {
         produtos.filter { produto ->
             val matchesQuery = searchQuery.isBlank() ||
                     produto.nome.contains(searchQuery, ignoreCase = true) ||
                     produto.codigo_barras.contains(searchQuery)
-            val matchesSetor = selectedSetor.equals("Todos", ignoreCase = true) ||
-                    produto.setor.trim().equals(selectedSetor.trim(), ignoreCase = true)
+            val matchesSetor = selectedSetor == "Todos" || produto.setor.equals(selectedSetor, ignoreCase = true)
             matchesQuery && matchesSetor
         }
     }
@@ -2069,15 +2038,15 @@ fun EstoqueContent(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Filtro de Setores Dinâmico (Apenas setores com produtos presentes)
+        // Filtro de Setores
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            setoresPresentes.forEach { setor ->
-                val selected = selectedSetor.equals(setor, ignoreCase = true)
+            setores.forEach { setor ->
+                val selected = selectedSetor == setor
                 FilterChip(
                     selected = selected,
                     onClick = { onSetorSelected(setor) },

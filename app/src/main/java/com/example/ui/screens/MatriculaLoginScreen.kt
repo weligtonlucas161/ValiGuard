@@ -3,9 +3,6 @@ package com.example.ui.screens
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.Image
-import androidx.compose.ui.res.painterResource
-import com.example.R
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -36,6 +33,7 @@ import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.foundation.layout.statusBarsPadding
+import com.example.ui.components.EnviarFeedbackDialog
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -105,6 +103,7 @@ fun MatriculaLoginScreen(
     var alertMessage by remember { mutableStateOf<String?>(null) }
     var detectedCargo by remember { mutableStateOf<String?>(null) }
     var detectedNome by remember { mutableStateOf<String?>(null) }
+    var showFeedbackDialog by remember { mutableStateOf(false) }
 
     // Detecção dinâmica de cargo para mudar detalhes visuais (Amarelo = ADM, Roxo = Master, Azul = Comum)
     LaunchedEffect(matricula) {
@@ -238,6 +237,23 @@ fun MatriculaLoginScreen(
             .background(DarkSurface)
             .imePadding()
     ) {
+        // Botão de Enviar Feedback com Estrela
+        IconButton(
+            onClick = { showFeedbackDialog = true },
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .statusBarsPadding()
+                .padding(16.dp)
+                .testTag("btn_feedback_star_login")
+        ) {
+            Icon(
+                imageVector = Icons.Default.Star,
+                contentDescription = "Enviar Feedback ao ADM",
+                tint = Color(0xFFFBBF24),
+                modifier = Modifier.size(28.dp)
+            )
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -246,18 +262,19 @@ fun MatriculaLoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // App Branding Icon - ValiGuard
+            // App Branding Icon
             Surface(
                 shape = RoundedCornerShape(22.dp),
-                color = DarkSurfaceContainerHigh,
-                border = BorderStroke(1.5.dp, Color(0xFF10B981).copy(alpha = 0.6f)),
-                modifier = Modifier.size(80.dp)
+                color = accentContainer,
+                border = BorderStroke(1.5.dp, accentColor.copy(alpha = 0.6f)),
+                modifier = Modifier.size(76.dp)
             ) {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(10.dp)) {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_valiguard_logo),
-                        contentDescription = "Logo ValiGuard",
-                        modifier = Modifier.size(56.dp)
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Storefront,
+                        contentDescription = "Ícone do Sistema",
+                        tint = accentLight,
+                        modifier = Modifier.size(42.dp)
                     )
                 }
             }
@@ -265,7 +282,7 @@ fun MatriculaLoginScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "ValiGuard",
+                text = "Synk",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.ExtraBold,
                 color = DarkTextPrimary,
@@ -273,7 +290,7 @@ fun MatriculaLoginScreen(
             )
 
             Text(
-                text = "Controle Inteligente de Validades, Estoque e Auditorias",
+                text = "Controle de Validades e Estoque",
                 style = MaterialTheme.typography.bodyMedium,
                 color = DarkTextSecondary,
                 textAlign = TextAlign.Center,
@@ -500,6 +517,12 @@ fun MatriculaLoginScreen(
             },
             containerColor = DarkSurfaceContainer,
             shape = RoundedCornerShape(16.dp)
+        )
+    }
+
+    if (showFeedbackDialog) {
+        EnviarFeedbackDialog(
+            onDismiss = { showFeedbackDialog = false }
         )
     }
 }

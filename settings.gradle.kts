@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "ValiGuard"
+rootProject.name = "Synk"
 
 include(":app")

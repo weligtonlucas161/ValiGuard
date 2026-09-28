@@ -4,9 +4,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
-import androidx.compose.ui.res.painterResource
-import com.example.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -215,25 +212,30 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Header Logo & Branding - ValiGuard
+            // Header Logo & Branding
             Surface(
                 shape = RoundedCornerShape(22.dp),
                 color = if (isAdmMatricula) Color(0xFF451A03)
                 else if (isMasterMatricula) Color(0xFF2E1065)
-                else Color(0xFF0F172A),
+                else BlueExpressiveContainer,
                 border = BorderStroke(
                     1.5.dp,
                     if (isAdmMatricula) Color(0xFFF59E0B)
                     else if (isMasterMatricula) Color(0xFF8B5CF6)
-                    else Color(0xFF10B981)
+                    else BlueExpressive.copy(alpha = 0.5f)
                 ),
-                modifier = Modifier.size(80.dp)
+                modifier = Modifier.size(76.dp)
             ) {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(10.dp)) {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_valiguard_logo),
-                        contentDescription = "Logo ValiGuard",
-                        modifier = Modifier.size(56.dp)
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = if (isAdmMatricula) Icons.Default.AdminPanelSettings
+                        else if (isMasterMatricula) Icons.Default.Star
+                        else Icons.Default.Storefront,
+                        contentDescription = "Logo",
+                        tint = if (isAdmMatricula) Color(0xFFF59E0B)
+                        else if (isMasterMatricula) Color(0xFFA78BFA)
+                        else BlueExpressive,
+                        modifier = Modifier.size(42.dp)
                     )
                 }
             }
@@ -241,7 +243,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(18.dp))
 
             Text(
-                text = "ValiGuard",
+                text = "Synk",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,

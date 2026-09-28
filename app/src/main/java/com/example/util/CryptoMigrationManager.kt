@@ -43,30 +43,24 @@ object CryptoMigrationManager {
                 supabase.from("produtos").select { eq("loja_id", lojaId) }.decodeList<Produto>()
             }
 
-            // ... dentro de migrarTodosDadosNaoCriptografados()
             for (p in listaProdutos) {
                 val precisaCriptografar = !p.nome.startsWith(CryptoUtils.PREFIX) ||
-                    !p.codigo_barras.startsWith(CryptoUtils.PREFIX) ||
-                    !p.setor.startsWith(CryptoUtils.PREFIX) ||
-                    (p.plu != null && p.plu.isNotBlank() && !p.plu.startsWith(CryptoUtils.PREFIX)) ||
-                    (p.secao != null && p.secao.isNotBlank() && !p.secao.startsWith(CryptoUtils.PREFIX)) ||
-                    (p.lote != null && p.lote.isNotBlank() && !p.lote.startsWith(CryptoUtils.PREFIX)) ||
-                    (p.localizacao != null && p.localizacao.isNotBlank() && !p.localizacao.startsWith(CryptoUtils.PREFIX)) ||
-                    (p.observacoes != null && p.observacoes.isNotBlank() && !p.observacoes.startsWith(CryptoUtils.PREFIX))
+                        !p.codigo_barras.startsWith(CryptoUtils.PREFIX) ||
+                        !p.setor.startsWith(CryptoUtils.PREFIX) ||
+                        (p.plu != null && p.plu.isNotBlank() && !p.plu.startsWith(CryptoUtils.PREFIX))
 
-                    if (precisaCriptografar) {
-                        val pEncrypted = p.encrypted()
-                        try {
-                            supabase.from("produtos").update(pEncrypted) {
-                                eq("id", p.id)
-                            }
-                            countProd++
-                        } catch (e: Exception) {
-                            Log.w(TAG, "Falha ao migrar produto ${p.id}: ${e.message}")
+                if (precisaCriptografar) {
+                    val pEncrypted = p.encrypted()
+                    try {
+                        supabase.from("produtos").update(pEncrypted) {
+                            eq("id", p.id)
                         }
+                        countProd++
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Falha ao migrar produto ${p.id}: ${e.message}")
                     }
                 }
-            // ...
+            }
 
             // 2. Migração de Usuários
             try {
@@ -81,7 +75,8 @@ object CryptoMigrationManager {
                         try {
                             supabase.from("usuarios").update(
                                 mapOf(
-                                    "nome" to encNome
+                                    "nome" to encNome,
+                                    "setor" to encSetor
                                 )
                             ) {
                                 eq("matricula", u.matricula)

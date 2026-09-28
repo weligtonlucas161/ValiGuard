@@ -1,6 +1,5 @@
 package com.example.data.supabase
 
-import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 import java.util.UUID
 
@@ -27,7 +26,7 @@ data class Usuario(
     val loja_id: String,
     val ativo: Boolean = true,
     val ultimo_ping: String? = null,
-    @Json(ignore = true) @Transient val setor: String? = null // Setor local resolvido ou null (não existe na tabela remota do Supabase)
+    val setor: String? = null // Setor específico ou null para todos
 )
 
 @JsonClass(generateAdapter = true)
@@ -38,7 +37,7 @@ data class NovoUsuario(
     val loja_id: String,
     val ativo: Boolean = true,
     val ultimo_ping: String? = null,
-    @Json(ignore = true) @Transient val setor: String? = null
+    val setor: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -80,7 +79,7 @@ data class AtualizarUsuario(
     val nome: String,
     val cargo: String,
     val ativo: Boolean,
-    @Json(ignore = true) @Transient val setor: String? = null
+    val setor: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -121,7 +120,7 @@ data class AtualizarUsuarioCompleto(
     val cargo: String,
     val loja_id: String,
     val ativo: Boolean,
-    @Json(ignore = true) @Transient val setor: String? = null
+    val setor: String? = null
 )
 
 @JsonClass(generateAdapter = true)

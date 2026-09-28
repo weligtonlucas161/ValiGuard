@@ -57,7 +57,6 @@ import com.example.data.supabase.AtualizarUsuarioCompleto
 import com.example.data.supabase.Loja
 import com.example.data.supabase.SupabaseClient
 import com.example.data.supabase.Usuario
-import com.example.util.encrypted
 import com.example.ui.theme.BlueExpressive
 import com.example.ui.theme.DarkBorder
 import com.example.ui.theme.DarkSurfaceContainer
@@ -312,7 +311,7 @@ fun EditarUsuarioAdmDialog(
                                         ativo = ativo
                                     )
                                     supabase.from("usuarios")
-                                        .update(updatePayload.encrypted()) {
+                                        .update(updatePayload) {
                                             eq("matricula", usuario.matricula)
                                         }
 

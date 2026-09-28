@@ -39,32 +39,17 @@ object SoundFeedbackHelper {
             }
     }
 
-    private var toneGeneratorMusic: android.media.ToneGenerator? = null
-
-    private fun getToneGen(): android.media.ToneGenerator? {
-        if (toneGeneratorMusic == null) {
-            try {
-                toneGeneratorMusic = android.media.ToneGenerator(android.media.AudioManager.STREAM_MUSIC, 100)
-            } catch (_: Exception) {}
-        }
-        return toneGeneratorMusic
-    }
-
     /**
-     * Toca um bipe sonoro de leitor de código de barras (estilo caixa de supermercado/coletor)
-     * e aciona vibração rápida de confirmação.
+     * Toca um bipe curto com tom audível e aciona vibração rápida.
+     * Ideal para coletores de dados e leitura contínua com feedback imediato.
      */
     fun playSuccessBeep(context: Context) {
+        // Tenta tocar usando ToneGenerator do sistema ou SoundPool
         try {
-            val tg = getToneGen() ?: android.media.ToneGenerator(android.media.AudioManager.STREAM_MUSIC, 100)
-            tg.startTone(android.media.ToneGenerator.TONE_PROP_BEEP, 150)
+            val toneGen = android.media.ToneGenerator(android.media.AudioManager.STREAM_NOTIFICATION, 100)
+            toneGen.startTone(android.media.ToneGenerator.TONE_PROP_BEEP, 120) // Bipe curto de 120ms
         } catch (_: Exception) {
-            try {
-                val fallbackTg = android.media.ToneGenerator(android.media.AudioManager.STREAM_NOTIFICATION, 100)
-                fallbackTg.startTone(android.media.ToneGenerator.TONE_PROP_BEEP, 150)
-            } catch (_: Exception) {
-                // Silencioso em caso de restrição de áudio do dispositivo
-            }
+            // Silencioso em caso de restrição de áudio
         }
 
         // Haptic Feedback (Vibração curta de 50ms)

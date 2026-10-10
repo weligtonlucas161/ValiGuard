@@ -49,8 +49,8 @@ android {
     applicationId = "com.aistudio.validadesuper.wlpqzx"
     minSdk = 24
     targetSdk = 36
-    versionCode = 1
-    versionName = "1.0"
+    versionCode = 12
+    versionName = "v.0.1.1 dev"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -149,6 +149,7 @@ dependencies {
   // implementation(libs.coil.compose)
   implementation(libs.converter.moshi)
   implementation(libs.firebase.ai)
+  implementation(libs.firebase.messaging)
   // Uncomment to use Firestore:
   // implementation(libs.firebase.firestore)
 
@@ -167,6 +168,7 @@ dependencies {
   implementation(libs.okhttp)
   // implementation(libs.play.services.location)
   implementation(libs.play.services.code.scanner)
+  implementation(libs.mlkit.text.recognition)
   implementation(libs.retrofit)
   testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)
